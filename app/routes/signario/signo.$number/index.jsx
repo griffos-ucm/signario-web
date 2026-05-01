@@ -3,7 +3,7 @@ import { useLoaderData } from "@remix-run/react";
 import { useRef, useEffect } from "react";
 
 import { getSign } from "../../../db.server.js"; 
-import markdown from "../../../markdown.server.js";
+import markdown, { markdownInline } from "../../../markdown.server.js";
 
 export function meta ({ data }) {
     return { title: "Signario | "+data?.gloss }
@@ -12,11 +12,42 @@ export function meta ({ data }) {
 export async function loader ({ params }) {
     const sign = await getSign(params.number);
     if (!sign) throw new Response("", { status: 404 });
-    if (sign.definitions.length == 0) {
-        sign.acepciones = [sign.gloss];
+
+    if (sign.definitions.length === 0) {
+        sign.acepciones = { note: null, groups: [], gloss: sign.gloss };
     } else {
-        sign.acepciones = sign.definitions.map(d => markdown(d.content));
+        const contents = sign.definitions.map(d => d.content);
+        let note = null;
+        let start = 0;
+
+        if (contents[0].startsWith('!')) {
+            note = markdown(contents[0].slice(1).trim());
+            start = 1;
+        }
+
+        const remaining = contents.slice(start);
+        const hasSeparators = remaining.some(c => c.trim() === '---');
+
+        let groups;
+        if (hasSeparators) {
+            groups = [];
+            let currentGroup = [];
+            for (const c of remaining) {
+                if (c.trim() === '---') {
+                    if (currentGroup.length > 0) groups.push(currentGroup);
+                    currentGroup = [];
+                } else {
+                    currentGroup.push(markdownInline(c));
+                }
+            }
+            if (currentGroup.length > 0) groups.push(currentGroup);
+        } else {
+            groups = remaining.length > 0 ? [remaining.map(c => markdownInline(c))] : [];
+        }
+
+        sign.acepciones = { note, groups, gloss: null };
     }
+
     return json(sign);
 }
 
@@ -26,14 +57,38 @@ export default function Signo () {
     useEffect(() => {
         bottom.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
+
+    const { note, groups, gloss } = s.acepciones;
+    const hasRomanGroups = groups.length > 1;
+
     return <div className="bg-stone-50">
         <h2 className="text-2xl text-center text-orange-700 my-4 py-2 border-b border-orange-700 font-bold">{s.notation}</h2>
         <video className="rounded w-full aspect-[4/3]" muted autoPlay controls>
           <source src={`/signario/signo/${s.number}/video.mp4`} />
         </video>
-        {s.acepciones.map((a, i) => <section key={i}
-            className={"prose lg:prose-xl prose-stone prose-orange my-2"+(i==0?" mt-12":"")}
-            dangerouslySetInnerHTML={{__html:a}} />)}
+        <div className="prose lg:prose-xl prose-stone prose-orange my-2 mt-12">
+            {gloss && <p>{gloss}</p>}
+            {note && <div dangerouslySetInnerHTML={{__html: note}} />}
+            {hasRomanGroups ? (
+                <ol className="list-[upper-roman]">
+                    {groups.map((group, gi) => (
+                        <li key={gi}>
+                            <ol className="list-decimal">
+                                {group.map((def, di) => (
+                                    <li key={di} dangerouslySetInnerHTML={{__html: def}} />
+                                ))}
+                            </ol>
+                        </li>
+                    ))}
+                </ol>
+            ) : groups.length > 0 && (
+                <ol>
+                    {groups[0].map((def, di) => (
+                        <li key={di} dangerouslySetInnerHTML={{__html: def}} />
+                    ))}
+                </ol>
+            )}
+        </div>
         <div ref={bottom} className="mt-8" />
     </div>;
 }
