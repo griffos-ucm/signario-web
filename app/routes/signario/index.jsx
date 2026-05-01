@@ -4,10 +4,48 @@ import { useRef, useState, useEffect } from "react";
 
 import { searchSN, searchSpa } from "../../db.server.js"; 
 import { Search } from '../../components/search.jsx';
-import markdown from "../../markdown.server.js";
+import { markdownInline } from "../../markdown.server.js";
 
 const INITIAL_RESULTS = 6;
 const MAX_RESULTS = 20;
+
+// Returns the first definition from each Roman numeral group (separated by '---').
+function getFirstDefs(definitions) {
+    if (!definitions?.length) return [];
+    const contents = definitions.map(d => d.content);
+    let start = 0;
+    if (contents[0]?.startsWith('!')) start = 1;
+    const remaining = contents.slice(start);
+    const firstDefs = [];
+    let seenFirst = false;
+    for (const c of remaining) {
+        if (c.trim() === '---') {
+            seenFirst = false;
+        } else if (!seenFirst) {
+            firstDefs.push(c);
+            seenFirst = true;
+        }
+    }
+    return firstDefs;
+}
+
+// Strips italic markdown from a definition text for use in thumbnails:
+// - Removes parenthesised groups that contain only italic text (removing the parentheses too)
+// - Removes any remaining italic text
+// - Keeps only the part before the first semicolon
+const ITALIC_IN_PARENS = /\(\s*(?:\*(?!\*)[^*]+\*(?!\*)|_(?!_)[^_]+_(?!_))\s*\)/g;
+const ITALIC = /\*(?!\*)[^*]+\*(?!\*)|_(?!_)[^_]+_(?!_)/g;
+
+function thumbnailText(text) {
+    // Remove parenthesised groups whose entire content is italic (*…* or _…_)
+    text = text.replace(ITALIC_IN_PARENS, '');
+    // Remove remaining italic text
+    text = text.replace(ITALIC, '');
+    // Keep only before the first semicolon
+    const semi = text.indexOf(';');
+    if (semi !== -1) text = text.slice(0, semi);
+    return text.replace(/\s+/g, ' ').trim();
+}
 
 export async function loader ({ request }) {
     let signs;
@@ -22,7 +60,19 @@ export async function loader ({ request }) {
             } else {
                 signs = await searchSN(query, limit);
             }
-            signs.forEach(s => { s.heading = markdown(s.definitions[0]?.content || s.gloss); });
+            signs.forEach(s => {
+                const firstDefs = getFirstDefs(s.definitions);
+                let headingContent;
+                if (firstDefs.length > 0) {
+                    const texts = firstDefs.map(thumbnailText).filter(Boolean);
+                    headingContent = texts.length > 0
+                        ? texts.map(t => markdownInline(t)).join(' / ')
+                        : (s.gloss ? markdownInline(s.gloss) : '');
+                } else {
+                    headingContent = s.gloss ? markdownInline(s.gloss) : '';
+                }
+                s.heading = headingContent ? `<p>${headingContent}</p>` : '';
+            });
         } else {
             signs = [];
         }
