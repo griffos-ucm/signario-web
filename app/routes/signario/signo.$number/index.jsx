@@ -42,9 +42,7 @@ export async function loader ({ params }) {
             }
             if (currentGroup.length > 0) groups.push(currentGroup);
         } else {
-            groups = remaining.length > 0
-                ? [remaining.filter(c => c.trim() !== '---').map(c => markdownInline(c))]
-                : [];
+            groups = remaining.length > 0 ? [remaining.map(c => markdownInline(c))] : [];
         }
 
         sign.acepciones = { note, groups, gloss: null };
