@@ -62,14 +62,16 @@ export async function loader ({ request }) {
             }
             signs.forEach(s => {
                 const firstDefs = getFirstDefs(s.definitions);
+                let headingContent;
                 if (firstDefs.length > 0) {
                     const texts = firstDefs.map(thumbnailText).filter(Boolean);
-                    s.heading = texts.length > 0
+                    headingContent = texts.length > 0
                         ? texts.map(t => markdownInline(t)).join(' / ')
                         : (s.gloss ? markdownInline(s.gloss) : '');
                 } else {
-                    s.heading = s.gloss ? markdownInline(s.gloss) : '';
+                    headingContent = s.gloss ? markdownInline(s.gloss) : '';
                 }
+                s.heading = headingContent ? `<p>${headingContent}</p>` : '';
             });
         } else {
             signs = [];
