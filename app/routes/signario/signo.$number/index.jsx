@@ -3,7 +3,7 @@ import { useLoaderData } from "@remix-run/react";
 import { useRef, useEffect } from "react";
 
 import { getSign } from "../../../db.server.js"; 
-import markdown from "../../../markdown.server.js";
+import markdown, { markdownInline } from "../../../markdown.server.js";
 
 export function meta ({ data }) {
     return { title: "Signario | "+data?.gloss }
@@ -37,12 +37,14 @@ export async function loader ({ params }) {
                     if (currentGroup.length > 0) groups.push(currentGroup);
                     currentGroup = [];
                 } else {
-                    currentGroup.push(markdown(c));
+                    currentGroup.push(markdownInline(c));
                 }
             }
             if (currentGroup.length > 0) groups.push(currentGroup);
         } else {
-            groups = remaining.length > 0 ? [remaining.map(c => markdown(c))] : [];
+            groups = remaining.length > 0
+                ? [remaining.filter(c => c.trim() !== '---').map(c => markdownInline(c))]
+                : [];
         }
 
         sign.acepciones = { note, groups, gloss: null };

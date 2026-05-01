@@ -9,3 +9,7 @@ marked.use({ walkTokens: token => {
 export default function markdown (text) {
     return marked.parse(text);
 }
+
+export function markdownInline (text) {
+    return marked.parseInline(text);
+}
