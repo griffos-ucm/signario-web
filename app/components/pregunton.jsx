@@ -38,17 +38,23 @@ function reducer (SN, action) {
     return ret;
 }
 
+const COOKIE_MAX_AGE = 31536000; // 1 year in seconds
+
+function getAvanzadoCookie () {
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('avanzado='));
+    return cookie ? cookie.trim().slice('avanzado='.length) === 'true' : false;
+}
+
 export function Pregunton ({ setSN }) {
     const [detailed, setDets] = useState(false);
 
     useEffect(() => {
-        const isAvanzado = document.cookie.split(';').some(c => c.trim() === 'avanzado=true');
-        setDets(isAvanzado);
+        setDets(getAvanzadoCookie());
     }, []);
 
     function toggleDets () {
         const newVal = !detailed;
-        document.cookie = `avanzado=${newVal}; path=/; max-age=31536000`;
+        document.cookie = `avanzado=${newVal}; path=/; max-age=${COOKIE_MAX_AGE}`;
         setDets(newVal);
     }
 
