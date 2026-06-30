@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useObsReducer } from "./pregunton/common";
 import { PreguntonQ } from "./pregunton/Q";
 import { PreguntonO } from "./pregunton/O";
@@ -38,8 +38,28 @@ function reducer (SN, action) {
     return ret;
 }
 
+const COOKIE_MAX_AGE = 31536000; // 1 year in seconds
+
+function getAvanzadoCookie () {
+    const raw = document.cookie.split(';').find(c => c.trim().startsWith('avanzado='));
+    if (!raw) return false;
+    const trimmed = raw.trim();
+    return trimmed.slice('avanzado='.length) === 'true';
+}
+
 export function Pregunton ({ setSN }) {
     const [detailed, setDets] = useState(false);
+
+    useEffect(() => {
+        setDets(getAvanzadoCookie());
+    }, []);
+
+    function toggleDets () {
+        const newVal = !detailed;
+        document.cookie = `avanzado=${newVal}; path=/; max-age=${COOKIE_MAX_AGE}`;
+        setDets(newVal);
+    }
+
     const [SN, dispatch] = useObsReducer(DEFAULT_SN, reducer,
         sn => setSN(signotation(sn)));
 
@@ -66,7 +86,7 @@ export function Pregunton ({ setSN }) {
         <p className="text-right italic text-stone-600 mt-3">
             <label>Avanzado
             <input className="ml-2" type="checkbox"
-                checked={detailed} onChange={() => setDets(!detailed)} />
+                checked={detailed} onChange={toggleDets} />
         </label></p>
     </form>;
 }
