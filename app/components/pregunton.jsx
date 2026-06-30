@@ -41,8 +41,10 @@ function reducer (SN, action) {
 const COOKIE_MAX_AGE = 31536000; // 1 year in seconds
 
 function getAvanzadoCookie () {
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('avanzado='));
-    return cookie ? cookie.trim().slice('avanzado='.length) === 'true' : false;
+    const raw = document.cookie.split(';').find(c => c.trim().startsWith('avanzado='));
+    if (!raw) return false;
+    const trimmed = raw.trim();
+    return trimmed.slice('avanzado='.length) === 'true';
 }
 
 export function Pregunton ({ setSN }) {
